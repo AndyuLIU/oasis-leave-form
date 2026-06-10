@@ -1,0 +1,186 @@
+{
+  "name": "LINE 審核事件 - line-events",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "line-events",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "node-le-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "oasis-line-events-v1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const events = $json.events || [];\nconst postback = events.find(e => e.type === 'postback');\n\nif (!postback) {\n  return [{ json: { skip: true } }];\n}\n\nconst params = new URLSearchParams(postback.postback.data);\nconst action = params.get('action');\nconst pageId = params.get('pageId');\nconst employeeUid = params.get('employeeUid');\n\nif (!action || !pageId || !employeeUid) {\n  return [{ json: { skip: true } }];\n}\n\nreturn [{ json: { skip: false, action, pageId, employeeUid } }];"
+      },
+      "id": "node-le-parse",
+      "name": "解析 LINE 事件",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond-not-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "false" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-le-if-skip",
+      "name": "是 postback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            {
+              "id": "cond-approve",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "approve",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "node-le-if-action",
+      "name": "核准或拒絕?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.pageId }}",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "狀態|select", "selectValue": "核准" }
+          ]
+        }
+      },
+      "id": "node-le-notion-approve",
+      "name": "更新 Notion（核准）",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1120, 160]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer UDQIcerFB3y15zIS3Sqreic6ZigO1zW8pZw+rF82Ze9dT76d2A3O0ikD9w8UO8XY/0pOLi6s8P/ANBM+pcvTdeWNliaWszVYxLiqO5S3jKQCkqjjRaeE/nkmuSTpcQjd5mJ6anOAmyU3/oySK5y7WQdB04t89/1O/w1cDnyilFU="
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.employeeUid, messages: [{ type: 'text', text: '✅ 你的請假申請已核准！\\n\\n如有問題請聯繫店長。' }] }) }}",
+        "options": {}
+      },
+      "id": "node-le-notify-approve",
+      "name": "通知員工（核准）",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 160]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": {
+          "__rl": true,
+          "value": "={{ $json.pageId }}",
+          "mode": "id"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "狀態|select", "selectValue": "拒絕" }
+          ]
+        }
+      },
+      "id": "node-le-notion-reject",
+      "name": "更新 Notion（拒絕）",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [1120, 440]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer UDQIcerFB3y15zIS3Sqreic6ZigO1zW8pZw+rF82Ze9dT76d2A3O0ikD9w8UO8XY/0pOLi6s8P/ANBM+pcvTdeWNliaWszVYxLiqO5S3jKQCkqjjRaeE/nkmuSTpcQjd5mJ6anOAmyU3/oySK5y7WQdB04t89/1O/w1cDnyilFU="
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.employeeUid, messages: [{ type: 'text', text: '❌ 你的請假申請未通過。\\n\\n請聯繫店長了解原因。' }] }) }}",
+        "options": {}
+      },
+      "id": "node-le-notify-reject",
+      "name": "通知員工（拒絕）",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 440]
+    }
+  ],
+  "connections": {
+    "Webhook":      { "main": [[{ "node": "解析 LINE 事件", "type": "main", "index": 0 }]] },
+    "解析 LINE 事件": { "main": [[{ "node": "是 postback?",  "type": "main", "index": 0 }]] },
+    "是 postback?": {
+      "main": [
+        [{ "node": "核准或拒絕?", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "核准或拒絕?": {
+      "main": [
+        [{ "node": "更新 Notion（核准）", "type": "main", "index": 0 }],
+        [{ "node": "更新 Notion（拒絕）", "type": "main", "index": 0 }]
+      ]
+    },
+    "更新 Notion（核准）": { "main": [[{ "node": "通知員工（核准）", "type": "main", "index": 0 }]] },
+    "更新 Notion（拒絕）": { "main": [[{ "node": "通知員工（拒絕）", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": []
+}

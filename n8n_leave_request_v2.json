@@ -1,0 +1,135 @@
+{
+  "name": "請假申請 v2 - Flex Message 核准按鈕",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leave-request",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-lrv2-webhook",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "oasis-leave-request-v2"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "f77e79a6-f511-446e-91be-1d210a647bff",
+          "mode": "id"
+        },
+        "title": "={{ $json.name }}",
+        "propertiesUi": {
+          "propertyValues": [
+            { "key": "假別|select",        "selectValue": "={{ $json.leaveType }}" },
+            { "key": "開始日期|date",       "includeTime": false, "date": "={{ $json.startDate }}" },
+            { "key": "結束日期|date",       "includeTime": false, "date": "={{ $json.endDate }}" },
+            { "key": "所屬分店|select",     "selectValue": "={{ $json.store }}" },
+            { "key": "備註|rich_text",      "richTextValue": "={{ $json.note }}" },
+            { "key": "狀態|select",         "selectValue": "待審核" },
+            { "key": "員工 Line UID|rich_text", "richTextValue": "={{ $json.lineUserId }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-lrv2-notion-create",
+      "name": "寫入請假記錄",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "c575412d-635c-48fc-97bd-372823e246e2",
+          "mode": "id"
+        },
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "key": "門店名稱|title",
+              "condition": "title_equals",
+              "titleValue": "={{ $('Webhook').item.json.store }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-lrv2-notion-manager",
+      "name": "查詢店長資料",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const notionPage = $('寫入請假記錄').item.json;\nconst managerResults = $input.all();\nconst w = $('Webhook').item.json;\n\nconst pageId = notionPage.id;\nconst managerUid = managerResults.length > 0\n  ? (managerResults[0].json.properties?.['店長 Line UID']?.rich_text?.[0]?.plain_text ?? null)\n  : null;\n\nconst note = w.note || '（無）';\n\nconst payload = {\n  to: managerUid,\n  messages: [{\n    type: 'flex',\n    altText: '📋 ' + w.name + ' 請假申請，請審核',\n    contents: {\n      type: 'bubble',\n      header: {\n        type: 'box', layout: 'vertical',\n        backgroundColor: '#2D5A4B', paddingAll: '16px',\n        contents: [{ type: 'text', text: '📋 請假申請', color: '#FFFFFF', weight: 'bold', size: 'lg' }]\n      },\n      body: {\n        type: 'box', layout: 'vertical', spacing: 'sm', paddingAll: '16px',\n        contents: [\n          { type: 'box', layout: 'baseline', spacing: 'sm', contents: [\n            { type: 'text', text: '員工', color: '#888888', size: 'sm', flex: 2 },\n            { type: 'text', text: w.name + '（' + w.store + '）', wrap: true, size: 'sm', flex: 5 }\n          ]},\n          { type: 'box', layout: 'baseline', spacing: 'sm', contents: [\n            { type: 'text', text: '假別', color: '#888888', size: 'sm', flex: 2 },\n            { type: 'text', text: w.leaveType, wrap: true, size: 'sm', flex: 5 }\n          ]},\n          { type: 'box', layout: 'baseline', spacing: 'sm', contents: [\n            { type: 'text', text: '日期', color: '#888888', size: 'sm', flex: 2 },\n            { type: 'text', text: w.startDate + ' → ' + w.endDate, wrap: true, size: 'sm', flex: 5 }\n          ]},\n          { type: 'box', layout: 'baseline', spacing: 'sm', contents: [\n            { type: 'text', text: '備註', color: '#888888', size: 'sm', flex: 2 },\n            { type: 'text', text: note, wrap: true, size: 'sm', flex: 5 }\n          ]}\n        ]\n      },\n      footer: {\n        type: 'box', layout: 'horizontal', spacing: 'sm', paddingAll: '12px',\n        contents: [\n          {\n            type: 'button', style: 'primary', color: '#2D5A4B', height: 'sm',\n            action: {\n              type: 'postback', label: '✅ 核准',\n              data: 'action=approve&pageId=' + pageId + '&employeeUid=' + w.lineUserId\n            }\n          },\n          {\n            type: 'button', style: 'secondary', height: 'sm',\n            action: {\n              type: 'postback', label: '❌ 拒絕',\n              data: 'action=reject&pageId=' + pageId + '&employeeUid=' + w.lineUserId\n            }\n          }\n        ]\n      }\n    }\n  }]\n};\n\nreturn [{ json: payload }];"
+      },
+      "id": "node-lrv2-code-flex",
+      "name": "建立 Flex Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer UDQIcerFB3y15zIS3Sqreic6ZigO1zW8pZw+rF82Ze9dT76d2A3O0ikD9w8UO8XY/0pOLi6s8P/ANBM+pcvTdeWNliaWszVYxLiqO5S3jKQCkqjjRaeE/nkmuSTpcQjd5mJ6anOAmyU3/oySK5y7WQdB04t89/1O/w1cDnyilFU="
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "node-lrv2-http-line",
+      "name": "推送 Flex Message 給店長",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}",
+        "options": {}
+      },
+      "id": "node-lrv2-respond",
+      "name": "回傳成功",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook":          { "main": [[{ "node": "寫入請假記錄",          "type": "main", "index": 0 }]] },
+    "寫入請假記錄":      { "main": [[{ "node": "查詢店長資料",          "type": "main", "index": 0 }]] },
+    "查詢店長資料":      { "main": [[{ "node": "建立 Flex Message",     "type": "main", "index": 0 }]] },
+    "建立 Flex Message": { "main": [[{ "node": "推送 Flex Message 給店長", "type": "main", "index": 0 }]] },
+    "推送 Flex Message 給店長": { "main": [[{ "node": "回傳成功", "type": "main", "index": 0 }]] }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "staticData": null,
+  "tags": []
+}
