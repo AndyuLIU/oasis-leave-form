@@ -344,7 +344,8 @@
     const daysDiff = Math.round((new Date(ed) - new Date(sd)) / 86400000) + 1;
     let totalHours;
     if (daysDiff === 1) {
-      totalHours = Math.round((endDT - startDT) / 3600000 * 10) / 10;
+      const rawHours = Math.round((endDT - startDT) / 3600000 * 10) / 10;
+      totalHours = rawHours >= 8 ? rawHours - 1 : rawHours;
     } else {
       totalHours = daysDiff * 8;
     }
