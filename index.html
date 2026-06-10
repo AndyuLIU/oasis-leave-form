@@ -270,21 +270,22 @@
       <div class="field">
         <label>請假日期 <span class="req">*</span></label>
         <div class="date-row">
-          <input type="date" id="startDate">
-          <input type="date" id="endDate">
+          <input type="date" id="startDate" onchange="calcDuration()">
+          <input type="date" id="endDate" onchange="calcDuration()">
         </div>
         <div class="date-label-row">
           <span>開始日期</span>
           <span>結束日期</span>
         </div>
         <div class="date-row" style="margin-top:8px;">
-          <input type="time" id="startTime" value="09:00">
-          <input type="time" id="endTime" value="18:00">
+          <input type="time" id="startTime" value="12:00" onchange="calcDuration()">
+          <input type="time" id="endTime" value="21:00" onchange="calcDuration()">
         </div>
         <div class="date-label-row">
           <span>開始時間</span>
           <span>結束時間</span>
         </div>
+        <div id="duration-display" style="text-align:right;font-size:12px;color:var(--primary);margin-top:6px;font-weight:500;"></div>
       </div>
 
       <div class="field">
@@ -325,6 +326,36 @@
   const ALLOWED    = ['技術師', '櫃檯'];
 
   let employee = null;
+
+  function calcDuration() {
+    const sd = document.getElementById('startDate').value;
+    const ed = document.getElementById('endDate').value;
+    const st = document.getElementById('startTime').value;
+    const et = document.getElementById('endTime').value;
+    const el = document.getElementById('duration-display');
+
+    if (!sd || !ed || !st || !et) { el.textContent = ''; return; }
+
+    const startDT = new Date(sd + 'T' + st);
+    const endDT   = new Date(ed + 'T' + et);
+    if (endDT <= startDT) { el.textContent = ''; return; }
+
+    const daysDiff = Math.round((new Date(ed) - new Date(sd)) / 86400000) + 1;
+    let totalHours;
+    if (daysDiff === 1) {
+      totalHours = (endDT - startDT) / 3600000;
+    } else {
+      totalHours = daysDiff * 9;
+    }
+
+    let label;
+    if (totalHours % 9 === 0) {
+      label = (totalHours / 9) + ' 天';
+    } else {
+      label = totalHours + ' 小時';
+    }
+    el.textContent = '共 ' + label;
+  }
 
   function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -383,6 +414,7 @@
     const endDate    = document.getElementById('endDate').value;
     const startTime  = document.getElementById('startTime').value;
     const endTime    = document.getElementById('endTime').value;
+    const duration   = document.getElementById('duration-display').textContent.replace('共 ', '') || '';
     const note       = document.getElementById('note').value.trim();
 
     if (!leaveType || !startDate || !endDate || !startTime || !endTime) {
@@ -415,6 +447,7 @@
           startTime,
           endDate,
           endTime,
+          duration,
           note
         })
       });
