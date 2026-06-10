@@ -285,6 +285,7 @@
           <span>開始時間</span>
           <span>結束時間</span>
         </div>
+        <input type="hidden" id="durationHours" value="0">
         <div id="duration-display" style="text-align:right;font-size:12px;color:var(--primary);margin-top:6px;font-weight:500;"></div>
       </div>
 
@@ -343,18 +344,13 @@
     const daysDiff = Math.round((new Date(ed) - new Date(sd)) / 86400000) + 1;
     let totalHours;
     if (daysDiff === 1) {
-      totalHours = (endDT - startDT) / 3600000;
+      totalHours = Math.round((endDT - startDT) / 3600000 * 10) / 10;
     } else {
-      totalHours = daysDiff * 9;
+      totalHours = daysDiff * 8;
     }
 
-    let label;
-    if (totalHours % 9 === 0) {
-      label = (totalHours / 9) + ' 天';
-    } else {
-      label = totalHours + ' 小時';
-    }
-    el.textContent = '共 ' + label;
+    document.getElementById('durationHours').value = totalHours;
+    el.textContent = '共 ' + totalHours + ' 小時';
   }
 
   function showScreen(id) {
@@ -414,7 +410,7 @@
     const endDate    = document.getElementById('endDate').value;
     const startTime  = document.getElementById('startTime').value;
     const endTime    = document.getElementById('endTime').value;
-    const duration   = document.getElementById('duration-display').textContent.replace('共 ', '') || '';
+    const duration   = parseFloat(document.getElementById('durationHours').value) || 0;
     const note       = document.getElementById('note').value.trim();
 
     if (!leaveType || !startDate || !endDate || !startTime || !endTime) {
