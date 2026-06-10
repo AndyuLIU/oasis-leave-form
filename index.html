@@ -355,7 +355,7 @@
         return;
       }
 
-      employee = { lineUserId, name: data.name, role: data.role };
+      employee = { lineUserId, name: data.name, role: data.role, store: data.store };
 
       document.getElementById('emp-initial').textContent = data.name.slice(-1);
       document.getElementById('emp-name').textContent   = data.name;
@@ -395,6 +395,7 @@
         body: JSON.stringify({
           lineUserId: employee.lineUserId,
           name:       employee.name,
+          store:      employee.store,
           leaveType,
           startDate,
           endDate,
