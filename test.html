@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>oásis Webhook 測試</title>
+  <style>
+    body { font-family: monospace; background: #1e1e1e; color: #d4d4d4; padding: 24px; }
+    h2 { color: #4ec9b0; }
+    label { display: block; margin-top: 12px; color: #9cdcfe; font-size: 13px; }
+    input, select { width: 100%; padding: 6px 8px; background: #2d2d2d; border: 1px solid #555; color: #d4d4d4; border-radius: 4px; font-family: monospace; box-sizing: border-box; }
+    button { margin-top: 20px; padding: 10px 24px; background: #2D5A4B; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+    button:hover { background: #3d7a65; }
+    pre { margin-top: 20px; background: #2d2d2d; padding: 16px; border-radius: 4px; white-space: pre-wrap; font-size: 13px; border-left: 3px solid #4ec9b0; }
+    .ok  { border-left-color: #6a9955; }
+    .err { border-left-color: #f44747; }
+  </style>
+</head>
+<body>
+  <h2>🧪 oásis Leave Request — Webhook 測試</h2>
+
+  <label>lineUserId</label>
+  <input id="lineUserId" value="U6ec7ee0590b66954b8c7c5612ce7e91f">
+
+  <label>name</label>
+  <input id="name" value="劉俊佑">
+
+  <label>store</label>
+  <input id="store" value="總部">
+
+  <label>leaveType</label>
+  <select id="leaveType">
+    <option>事假</option><option>病假</option><option>婚假</option>
+    <option>喪假</option><option>公假</option><option>特休</option>
+    <option>生理假</option><option>產假</option><option>陪產假</option>
+    <option>育嬰留職停薪</option><option>家庭照顧假</option>
+  </select>
+
+  <label>startDate</label>
+  <input id="startDate" type="date" value="2026-06-17">
+
+  <label>endDate</label>
+  <input id="endDate" type="date" value="2026-06-17">
+
+  <label>note</label>
+  <input id="note" value="測試用">
+
+  <br>
+  <button onclick="send()">送出到 Webhook</button>
+
+  <pre id="out">結果會顯示在這裡…</pre>
+
+  <script>
+    async function send() {
+      const payload = {
+        lineUserId: document.getElementById('lineUserId').value,
+        name:       document.getElementById('name').value,
+        store:      document.getElementById('store').value,
+        leaveType:  document.getElementById('leaveType').value,
+        startDate:  document.getElementById('startDate').value,
+        endDate:    document.getElementById('endDate').value,
+        note:       document.getElementById('note').value
+      };
+
+      const out = document.getElementById('out');
+      out.className = '';
+      out.textContent = '送出中…\n\n' + JSON.stringify(payload, null, 2);
+
+      try {
+        const res = await fetch('https://andy1996.zeabur.app/webhook/leave-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await res.text();
+        out.className = res.ok ? 'ok' : 'err';
+        out.textContent = 'Status: ' + res.status + '\n\n' + text;
+      } catch (e) {
+        out.className = 'err';
+        out.textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
+</body>
+</html>
