@@ -1,0 +1,209 @@
+{
+  "name": "LINE 審核事件 - line-events",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "line-events",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "52bc6512-9184-4e1d-8bf6-9fe5fcf0f206",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-880, 144],
+      "webhookId": "oasis-line-events-v1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body || $json;\nconst events = body.events || [];\nlet postback = null;\nfor (let i = 0; i < events.length; i++) {\n  if (events[i].type === \"postback\") {\n    postback = events[i];\n    break;\n  }\n}\n\nif (!postback) {\n  return [{ json: { skip: true } }];\n}\n\nconst params = new URLSearchParams(postback.postback.data);\nconst action = params.get(\"action\");\nconst pageId = params.get(\"pageId\");\nconst employeeUid = params.get(\"employeeUid\");\nconst managerUid = postback.source ? postback.source.userId : null;\n\nif (!action || !pageId || !employeeUid) {\n  return [{ json: { skip: true } }];\n}\n\nreturn [{ json: { skip: false, action: action, pageId: pageId, employeeUid: employeeUid, managerUid: managerUid } }];"
+      },
+      "id": "3c2dbeb9-230b-468d-8a61-d0186abeeb78",
+      "name": "解析 LINE 事件",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-656, 144]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [
+            {
+              "id": "cond-not-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "false" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6cc7a504-5d81-408f-99e2-553387b189b6",
+      "name": "是 postback?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-448, 144]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 1 },
+          "conditions": [
+            {
+              "id": "cond-approve",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "approve",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "4e7d33ec-351c-45ce-bad1-ffac38636d3f",
+      "name": "核准或拒絕?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-224, 144]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": { "__rl": true, "value": "={{ $json.pageId }}", "mode": "id" },
+        "propertiesUi": {
+          "propertyValues": [{ "key": "狀態|select", "selectValue": "核准" }]
+        },
+        "options": {}
+      },
+      "id": "20492407-61e4-4289-8721-7ece77a5cda4",
+      "name": "更新 Notion（核准）",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "credentials": { "notionApi": { "id": "7thSCjIkDROSWg3M", "name": "oásis_Notion" } }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "={{ $json.employeeUid }}",
+        "messages": {
+          "values": [{ "type": "text", "message": "✅ 你的請假申請已核准！如有問題請聯繫店長。" }]
+        }
+      },
+      "id": "11edf2a9-8c4b-4564-b98f-850e04bbb36a",
+      "name": "通知員工（核准）",
+      "type": "@aotoki/n8n-nodes-line-messaging.lineMessaging",
+      "typeVersion": 1,
+      "position": [240, 0],
+      "credentials": { "lineMessagingApi": { "id": "MRVUEw9h3rJ7oOky", "name": "綠洲EIP測試" } }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "={{ $json.managerUid }}",
+        "messages": {
+          "values": [{ "type": "text", "message": "✅ 已核准，員工將收到通知。" }]
+        }
+      },
+      "id": "aa001122-0001-0001-0001-000000000001",
+      "name": "回覆店長（核准）",
+      "type": "@aotoki/n8n-nodes-line-messaging.lineMessaging",
+      "typeVersion": 1,
+      "position": [480, 0],
+      "credentials": { "lineMessagingApi": { "id": "MRVUEw9h3rJ7oOky", "name": "綠洲EIP測試" } }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "update",
+        "pageId": { "__rl": true, "value": "={{ $json.pageId }}", "mode": "id" },
+        "propertiesUi": {
+          "propertyValues": [{ "key": "狀態|select", "selectValue": "拒絕" }]
+        },
+        "options": {}
+      },
+      "id": "cd033d91-622d-4f81-8e65-d72796d63763",
+      "name": "更新 Notion（拒絕）",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [0, 320],
+      "credentials": { "notionApi": { "id": "7thSCjIkDROSWg3M", "name": "oásis_Notion" } }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "={{ $json.employeeUid }}",
+        "messages": {
+          "values": [{ "type": "text", "message": "❌ 你的請假申請未通過，請聯繫店長了解原因。" }]
+        }
+      },
+      "id": "206c2f75-40ee-4e32-9306-491e524fccff",
+      "name": "通知員工（拒絕）",
+      "type": "@aotoki/n8n-nodes-line-messaging.lineMessaging",
+      "typeVersion": 1,
+      "position": [240, 320],
+      "credentials": { "lineMessagingApi": { "id": "MRVUEw9h3rJ7oOky", "name": "綠洲EIP測試" } }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "={{ $json.managerUid }}",
+        "messages": {
+          "values": [{ "type": "text", "message": "❌ 已拒絕，員工將收到通知。" }]
+        }
+      },
+      "id": "aa001122-0002-0002-0002-000000000002",
+      "name": "回覆店長（拒絕）",
+      "type": "@aotoki/n8n-nodes-line-messaging.lineMessaging",
+      "typeVersion": 1,
+      "position": [480, 320],
+      "credentials": { "lineMessagingApi": { "id": "MRVUEw9h3rJ7oOky", "name": "綠洲EIP測試" } }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [[{ "node": "解析 LINE 事件", "type": "main", "index": 0 }]]
+    },
+    "解析 LINE 事件": {
+      "main": [[{ "node": "是 postback?", "type": "main", "index": 0 }]]
+    },
+    "是 postback?": {
+      "main": [
+        [{ "node": "核准或拒絕?", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "核准或拒絕?": {
+      "main": [
+        [{ "node": "更新 Notion（核准）", "type": "main", "index": 0 }],
+        [{ "node": "更新 Notion（拒絕）", "type": "main", "index": 0 }]
+      ]
+    },
+    "更新 Notion（核准）": {
+      "main": [[{ "node": "通知員工（核准）", "type": "main", "index": 0 }]]
+    },
+    "通知員工（核准）": {
+      "main": [[{ "node": "回覆店長（核准）", "type": "main", "index": 0 }]]
+    },
+    "更新 Notion（拒絕）": {
+      "main": [[{ "node": "通知員工（拒絕）", "type": "main", "index": 0 }]]
+    },
+    "通知員工（拒絕）": {
+      "main": [[{ "node": "回覆店長（拒絕）", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1", "availableInMCP": false },
+  "versionId": "22f867fd-658e-49a6-ac4a-e84d4d0bf6e9",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3abbe0eeb08f2ee39f88786587bbd2a710f04b2f1c7621947369de23abe2a6a9"
+  },
+  "id": "WkmPl2FfpiCG97Tr",
+  "tags": []
+}
