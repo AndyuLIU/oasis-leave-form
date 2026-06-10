@@ -82,5 +82,69 @@
       }
     }
   </script>
+
+  <hr style="border-color:#444;margin:40px 0">
+
+  <h2>🔔 LINE Events 測試（模擬店長按按鈕）</h2>
+
+  <label>Notion Page ID（從請假記錄複製）</label>
+  <input id="e_pageId" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
+
+  <label>員工 Line UID</label>
+  <input id="e_employeeUid" value="U6ec7ee0590b66954b8c7c5612ce7e91f">
+
+  <label>店長 Line UID（模擬按按鈕的人）</label>
+  <input id="e_managerUid" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+
+  <label>動作</label>
+  <select id="e_action">
+    <option value="approve">approve（核准）</option>
+    <option value="reject">reject（拒絕）</option>
+  </select>
+
+  <br>
+  <button onclick="sendEvent()">模擬 LINE Postback</button>
+
+  <pre id="out2">結果會顯示在這裡…</pre>
+
+  <script>
+    async function sendEvent() {
+      const pageId      = document.getElementById('e_pageId').value.trim();
+      const employeeUid = document.getElementById('e_employeeUid').value.trim();
+      const managerUid  = document.getElementById('e_managerUid').value.trim();
+      const action      = document.getElementById('e_action').value;
+
+      const payload = {
+        destination: managerUid,
+        events: [{
+          type: 'postback',
+          replyToken: 'test-reply-token-00000000',
+          source: { type: 'user', userId: managerUid },
+          postback: {
+            data: 'action=' + action + '&pageId=' + pageId + '&employeeUid=' + employeeUid
+          },
+          timestamp: Date.now()
+        }]
+      };
+
+      const out = document.getElementById('out2');
+      out.className = '';
+      out.textContent = '送出中…\n\n' + JSON.stringify(payload, null, 2);
+
+      try {
+        const res = await fetch('https://andy1996.zeabur.app/webhook-test/line-events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        out.className = res.ok ? 'ok' : 'err';
+        out.textContent = 'Status: ' + res.status + '\n\n' + text;
+      } catch (e) {
+        out.className = 'err';
+        out.textContent = 'Error: ' + e.message;
+      }
+    }
+  </script>
 </body>
 </html>
