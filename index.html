@@ -137,7 +137,7 @@
     }
     .req { color: #b94; margin-left: 2px; }
 
-    select, input[type="date"], textarea {
+    select, input[type="date"], input[type="time"], textarea {
       width: 100%;
       padding: 11px 13px;
       border: 1px solid var(--border);
@@ -156,7 +156,7 @@
       background-position: right 13px center;
       padding-right: 34px;
     }
-    select:focus, input[type="date"]:focus, textarea:focus {
+    select:focus, input[type="date"]:focus, input[type="time"]:focus, textarea:focus {
       outline: none;
       border-color: var(--primary);
     }
@@ -277,6 +277,14 @@
           <span>開始日期</span>
           <span>結束日期</span>
         </div>
+        <div class="date-row" style="margin-top:8px;">
+          <input type="time" id="startTime" value="09:00">
+          <input type="time" id="endTime" value="18:00">
+        </div>
+        <div class="date-label-row">
+          <span>開始時間</span>
+          <span>結束時間</span>
+        </div>
       </div>
 
       <div class="field">
@@ -370,17 +378,23 @@
   }
 
   async function submitForm() {
-    const leaveType = document.getElementById('leaveType').value;
-    const startDate = document.getElementById('startDate').value;
-    const endDate   = document.getElementById('endDate').value;
-    const note      = document.getElementById('note').value.trim();
+    const leaveType  = document.getElementById('leaveType').value;
+    const startDate  = document.getElementById('startDate').value;
+    const endDate    = document.getElementById('endDate').value;
+    const startTime  = document.getElementById('startTime').value;
+    const endTime    = document.getElementById('endTime').value;
+    const note       = document.getElementById('note').value.trim();
 
-    if (!leaveType || !startDate || !endDate) {
+    if (!leaveType || !startDate || !endDate || !startTime || !endTime) {
       alert('請填寫所有必填欄位');
       return;
     }
     if (endDate < startDate) {
       alert('結束日期不能早於開始日期');
+      return;
+    }
+    if (endDate === startDate && endTime <= startTime) {
+      alert('同一天請假時，結束時間必須晚於開始時間');
       return;
     }
 
@@ -398,7 +412,9 @@
           store:      employee.store,
           leaveType,
           startDate,
+          startTime,
           endDate,
+          endTime,
           note
         })
       });
@@ -406,7 +422,7 @@
       if (!res.ok) throw new Error('submit failed');
 
       document.getElementById('success-detail').textContent =
-        `${employee.name}・${leaveType}・${startDate} → ${endDate}`;
+        `${employee.name}・${leaveType}・${startDate} ${startTime} → ${endDate} ${endTime}`;
 
       showScreen('screen-success');
 
