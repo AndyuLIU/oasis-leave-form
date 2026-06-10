@@ -1,0 +1,180 @@
+{
+  "name": "請假申請 - leave-request",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "leave-request",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-leave-webhook-001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 300],
+      "webhookId": "oasis-leave-request-v1"
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "create",
+        "databaseId": {
+          "__rl": true,
+          "value": "f77e79a6-f511-446e-91be-1d210a647bff",
+          "mode": "id"
+        },
+        "title": "={{ $json.name }}",
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "假別|select",
+              "selectValue": "={{ $json.leaveType }}"
+            },
+            {
+              "key": "開始日期|date",
+              "includeTime": false,
+              "date": "={{ $json.startDate }}"
+            },
+            {
+              "key": "結束日期|date",
+              "includeTime": false,
+              "date": "={{ $json.endDate }}"
+            },
+            {
+              "key": "所屬分店|select",
+              "selectValue": "={{ $json.store }}"
+            },
+            {
+              "key": "備註|rich_text",
+              "richTextValue": "={{ $json.note }}"
+            },
+            {
+              "key": "狀態|select",
+              "selectValue": "待審核"
+            },
+            {
+              "key": "員工 Line UID|rich_text",
+              "richTextValue": "={{ $json.lineUserId }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-notion-create-001",
+      "name": "寫入請假記錄",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "operation": "getAll",
+        "databaseId": {
+          "__rl": true,
+          "value": "c575412d-635c-48fc-97bd-372823e246e2",
+          "mode": "id"
+        },
+        "returnAll": false,
+        "limit": 1,
+        "filterType": "manual",
+        "filters": {
+          "conditions": [
+            {
+              "key": "門店名稱|title",
+              "condition": "title_equals",
+              "titleValue": "={{ $('Webhook').item.json.store }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "node-notion-manager-001",
+      "name": "查詢店長資料",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const results = $input.all();\nconst webhook = $('Webhook').item.json;\n\nif (!results || results.length === 0) {\n  return [{ json: { ...webhook, managerUid: null } }];\n}\n\nconst page = results[0].json;\nconst managerUid = page.properties?.['店長 Line UID']?.rich_text?.[0]?.plain_text ?? null;\n\nreturn [{ json: { ...webhook, managerUid } }];"
+      },
+      "id": "node-code-manager-001",
+      "name": "整理店長資料",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.line.me/v2/bot/message/push",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer UDQIcerFB3y15zIS3Sqreic6ZigO1zW8pZw+rF82Ze9dT76d2A3O0ikD9w8UO8XY/0pOLi6s8P/ANBM+pcvTdeWNliaWszVYxLiqO5S3jKQCkqjjRaeE/nkmuSTpcQjd5mJ6anOAmyU3/oySK5y7WQdB04t89/1O/w1cDnyilFU="
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ to: $json.managerUid, messages: [{ type: 'text', text: '📋 請假申請通知\\n\\n員工：' + $json.name + '（' + $json.store + '）\\n假別：' + $json.leaveType + '\\n日期：' + $json.startDate + ' → ' + $json.endDate + ($json.note ? '\\n備註：' + $json.note : '') + '\\n\\n請至 Notion 審核' }] }) }}",
+        "options": {}
+      },
+      "id": "node-http-line-001",
+      "name": "通知店長 (LINE)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"success\": true}",
+        "options": {}
+      },
+      "id": "node-respond-001",
+      "name": "回傳成功",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [{ "node": "寫入請假記錄", "type": "main", "index": 0 }]
+      ]
+    },
+    "寫入請假記錄": {
+      "main": [
+        [{ "node": "查詢店長資料", "type": "main", "index": 0 }]
+      ]
+    },
+    "查詢店長資料": {
+      "main": [
+        [{ "node": "整理店長資料", "type": "main", "index": 0 }]
+      ]
+    },
+    "整理店長資料": {
+      "main": [
+        [{ "node": "通知店長 (LINE)", "type": "main", "index": 0 }]
+      ]
+    },
+    "通知店長 (LINE)": {
+      "main": [
+        [{ "node": "回傳成功", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": []
+}
