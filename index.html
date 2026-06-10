@@ -345,7 +345,7 @@
     let totalHours;
     if (daysDiff === 1) {
       const rawHours = Math.round((endDT - startDT) / 3600000 * 10) / 10;
-      totalHours = rawHours >= 8 ? rawHours - 1 : rawHours;
+      totalHours = rawHours >= 9 ? rawHours - 1 : rawHours;
     } else {
       totalHours = daysDiff * 8;
     }
