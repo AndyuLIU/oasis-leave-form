@@ -67,7 +67,7 @@
       out.textContent = '送出中…\n\n' + JSON.stringify(payload, null, 2);
 
       try {
-        const res = await fetch('https://andy1996.zeabur.app/webhook/leave-request', {
+        const res = await fetch('https://andy1996.zeabur.app/webhook-test/leave-request', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
